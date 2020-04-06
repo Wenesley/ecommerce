@@ -4,6 +4,7 @@ require_once("vendor/autoload.php");
 
 use \Slim\Slim;
 use \Wenesley\Page;
+use \Wenesley\PageAdmin;
 
 $app = new Slim();
 
@@ -13,16 +14,12 @@ $app->get('/', function() {
 
 	$page = new Page();
 	$page->setTpl("index");
+});
 
-	/*testes desta classe
-	$sql = new Wenesley\DB\Sql();
-	$results = $sql->select("SELECT * FROM tb_users");
+$app->get('/admin', function() {
 
-	echo json_encode($results);
-	*/
-    
-	//echo "OK";
-
+	$page = new PageAdmin();
+	$page->setTpl("index");
 });
 
 $app->run();
