@@ -5,15 +5,16 @@ use \Wenesley\Model\Product;
 use \Wenesley\Model\Category;
 
 
-$app->get("/", function() {
+$app->get('/', function() {
 
 	$products = Product::listAll();
 
 	$page = new Page();
 
 	$page->setTpl("index", [
-		"products"=>Product::checklist($products)
+		'products'=>Product::checkList($products)
 	]);
+
 });
 
 $app->get("/categories/:idcategory", function($idcategory){
@@ -41,6 +42,21 @@ $app->get("/categories/:idcategory", function($idcategory){
 		'category'=>$category->getValues(),
 		'products'=>$pagination["data"],
 		'pages'=>$pages
+	]);
+
+});
+
+$app->get("/products/:desurl", function($desurl){
+
+	$product = new Product();
+
+	$product->getFromURL($desurl);
+
+	$page = new Page();
+
+	$page->setTpl("product-detail", [
+		'product'=>$product->getValues(),
+		'categories'=>$product->getCategories()
 	]);
 
 });
