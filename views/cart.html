@@ -20,6 +20,7 @@
                     <div class="woocommerce">
 
                         <form action="/checkout">
+                            
                             {if="$error != ''"}
                             <div class="alert alert-danger" role="alert">
                             {$error}
@@ -49,7 +50,7 @@
                                         </td>
 
                                         <td class="product-name">
-                                            <a href="/products/{$value.desurl}">{$value.desproduct}</a> 
+                                            <a href="/product/{$value.desurl}">{$value.desproduct}</a> 
                                         </td>
 
                                         <td class="product-price">
@@ -68,7 +69,7 @@
                                             <span class="amount">R${function="formatPrice($value.vltotal)"}</span> 
                                         </td>
                                     </tr>
-                                    {/loop}                                    
+                                    {/loop}
                                 </tbody>
                             </table>
 
@@ -99,7 +100,7 @@
 
                                             <tr class="shipping">
                                                 <th>Frete</th>
-                                                <td>R${function="formatPrice($cart.vlfreight)"} {if="$cart.nrdays > 0"} <small>prazo de {$cart.nrdays} dia(s)</small> {/if}</td>
+                                                <td>R${function="formatPrice($cart.vlfreight)"}{if="$cart.nrdays > 0"} <small>prazo de {$cart.nrdays} dia(s)</small>{/if}</td>
                                             </tr>
 
                                             <tr class="order-total">

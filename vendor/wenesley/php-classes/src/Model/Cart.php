@@ -9,7 +9,6 @@ use \Wenesley\Model\User;
 
 class Cart extends Model {
 
-
 	const SESSION = "Cart";
 	const SESSION_ERROR = "CartError";
 
@@ -17,7 +16,7 @@ class Cart extends Model {
 	{
 
 		$cart = new Cart();
-		
+
 		if (isset($_SESSION[Cart::SESSION]) && (int)$_SESSION[Cart::SESSION]['idcart'] > 0) {
 
 			$cart->get((int)$_SESSION[Cart::SESSION]['idcart']);
@@ -111,6 +110,7 @@ class Cart extends Model {
 		]);
 
 		$this->setData($results[0]);
+
 	}
 
 	public function addProduct(Product $product)
@@ -177,19 +177,21 @@ class Cart extends Model {
 
 		$sql = new Sql();
 
-		$results = $sql->select(
-			"SELECT SUM(vlprice) AS vlprice, SUM(vlwidth) AS vlwidth, SUM(vlheight) AS vlheight, SUM(vllength) AS vllength, SUM(vlweight) AS vlweight, COUNT(*) AS nrqtd
+		$results = $sql->select("
+			SELECT SUM(vlprice) AS vlprice, SUM(vlwidth) AS vlwidth, SUM(vlheight) AS vlheight, SUM(vllength) AS vllength, SUM(vlweight) AS vlweight, COUNT(*) AS nrqtd
 			FROM tb_products a
 			INNER JOIN tb_cartsproducts b ON a.idproduct = b.idproduct
-			WHERE b.idcart = :idcart AND dtremoved IS NULL", [
-				"idcart"=>$this->getidcart()
-			]);
+			WHERE b.idcart = :idcart AND dtremoved IS NULL;
+		", [
+			':idcart'=>$this->getidcart()
+		]);
 
 		if (count($results) > 0) {
 			return $results[0];
 		} else {
 			return [];
 		}
+
 	}
 
 	public function setFreight($nrzipcode)
@@ -215,7 +217,7 @@ class Cart extends Model {
 				'nVlComprimento'=>$totals['vllength'],
 				'nVlAltura'=>$totals['vlheight'],
 				'nVlLargura'=>$totals['vlwidth'],
-				'nVlDiametro'=>'0',
+				'nVlDiametro'=>'5',
 				'sCdMaoPropria'=>'S',
 				'nVlValorDeclarado'=>$totals['vlprice'],
 				'sCdAvisoRecebimento'=>'S'
@@ -315,7 +317,6 @@ class Cart extends Model {
 		$this->setvltotal($totals['vlprice'] + (float)$this->getvlfreight());
 
 	}
-
 
 }
 
