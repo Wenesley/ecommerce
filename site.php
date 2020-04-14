@@ -3,6 +3,8 @@
 use \Wenesley\Page;
 use \Wenesley\Model\Product;
 use \Wenesley\Model\Category;
+use \Wenesley\Model\Cart;
+use \Hcode\Model\User;
 
 
 $app->get('/', function() {
@@ -60,5 +62,16 @@ $app->get("/products/:desurl", function($desurl){
 	]);
 
 });
+
+$app->get("/cart", function(){
+
+	$cart = Cart::getFromSession();
+
+	$page = new Page();
+
+	$page->setTpl("cart");
+
+});
+
 
 ?>
