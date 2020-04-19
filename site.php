@@ -4,11 +4,10 @@ use \Wenesley\Page;
 use \Wenesley\Model\Product;
 use \Wenesley\Model\Category;
 use \Wenesley\Model\Cart;
-use \Wenesley\Model\User;
 use \Wenesley\Model\Address;
+use \Wenesley\Model\User;
 use \Wenesley\Model\Order;
 use \Wenesley\Model\OrderStatus;
-
 
 $app->get('/', function() {
 
@@ -73,8 +72,8 @@ $app->get("/cart", function(){
 	$page = new Page();
 
 	$page->setTpl("cart", [
-		"cart"=>$cart->getValues(),
-		"products"=>$cart->getProducts(),
+		'cart'=>$cart->getValues(),
+		'products'=>$cart->getProducts(),
 		'error'=>Cart::getMsgError()
 	]);
 
@@ -88,11 +87,13 @@ $app->get("/cart/:idproduct/add", function($idproduct){
 
 	$cart = Cart::getFromSession();
 
-	$qtd = (isset($_GET["qtd"])) ? (int)$_GET["qtd"] : 1;
+	$qtd = (isset($_GET['qtd'])) ? (int)$_GET['qtd'] : 1;
 
-	for ($i=0; $i < $qtd; $i++) { 
+	for ($i = 0; $i < $qtd; $i++) {
+		
 		$cart->addProduct($product);
-	}	
+
+	}
 
 	header("Location: /cart");
 	exit;
@@ -114,7 +115,6 @@ $app->get("/cart/:idproduct/minus", function($idproduct){
 
 });
 
-
 $app->get("/cart/:idproduct/remove", function($idproduct){
 
 	$product = new Product();
@@ -130,7 +130,6 @@ $app->get("/cart/:idproduct/remove", function($idproduct){
 
 });
 
-
 $app->post("/cart/freight", function(){
 
 	$cart = Cart::getFromSession();
@@ -141,7 +140,6 @@ $app->post("/cart/freight", function(){
 	exit;
 
 });
-
 
 $app->get("/checkout", function(){
 
@@ -323,7 +321,6 @@ $app->get("/order/:idorder/paypal", function($idorder){
 
 });
 
-
 $app->get("/login", function(){
 
 	$page = new Page();
@@ -340,30 +337,27 @@ $app->post("/login", function(){
 
 	try {
 
-		User::login($_POST["login"], $_POST["password"]);
-		
-	} catch (Exception $e) {
+		User::login($_POST['login'], $_POST['password']);
+
+	} catch(Exception $e) {
 
 		User::setError($e->getMessage());
-		
+
 	}
 
 	header("Location: /checkout");
-
 	exit;
-});
 
+});
 
 $app->get("/logout", function(){
 
 	User::logout();
 
 	header("Location: /login");
-
 	exit;
+
 });
-
-
 
 $app->post("/register", function(){
 
@@ -420,7 +414,6 @@ $app->post("/register", function(){
 	exit;
 
 });
-
 
 $app->get("/forgot", function() {
 
@@ -481,7 +474,6 @@ $app->post("/forgot/reset", function(){
 
 });
 
-
 $app->get("/profile", function(){
 
 	User::verifyLogin(false);
@@ -528,17 +520,13 @@ $app->post("/profile", function(){
 
 	}
 
-	$_POST['iduser'] = $user->getiduser();
 	$_POST['inadmin'] = $user->getinadmin();
 	$_POST['despassword'] = $user->getdespassword();
 	$_POST['deslogin'] = $_POST['desemail'];
 
 	$user->setData($_POST);
 
-	//$user->save();
-	$user->update();
-
-	$user->setToSession();
+	$user->save();
 
 	User::setSuccess("Dados alterados com sucesso!");
 
@@ -546,7 +534,6 @@ $app->post("/profile", function(){
 	exit;
 
 });
-
 
 $app->get("/order/:idorder", function($idorder){
 
@@ -637,11 +624,112 @@ $app->get("/boleto/:idorder", function($idorder){
 
 });
 
+$app->get("/profile/orders", function(){
 
+	User::verifyLogin(false);
 
+	$user = User::getFromSession();
 
+	$page = new Page();
 
+	$page->setTpl("profile-orders", [
+		'orders'=>$user->getOrders()
+	]);
 
+});
 
+$app->get("/profile/orders/:idorder", function($idorder){
+
+	User::verifyLogin(false);
+
+	$order = new Order();
+
+	$order->get((int)$idorder);
+
+	$cart = new Cart();
+
+	$cart->get((int)$order->getidcart());
+
+	$cart->getCalculateTotal();
+
+	$page = new Page();
+
+	$page->setTpl("profile-orders-detail", [
+		'order'=>$order->getValues(),
+		'cart'=>$cart->getValues(),
+		'products'=>$cart->getProducts()
+	]);	
+
+});
+
+$app->get("/profile/change-password", function(){
+
+	User::verifyLogin(false);
+
+	$page = new Page();
+
+	$page->setTpl("profile-change-password", [
+		'changePassError'=>User::getError(),
+		'changePassSuccess'=>User::getSuccess()
+	]);
+
+});
+
+$app->post("/profile/change-password", function(){
+
+	User::verifyLogin(false);
+
+	if (!isset($_POST['current_pass']) || $_POST['current_pass'] === '') {
+
+		User::setError("Digite a senha atual.");
+		header("Location: /profile/change-password");
+		exit;
+
+	}
+
+	if (!isset($_POST['new_pass']) || $_POST['new_pass'] === '') {
+
+		User::setError("Digite a nova senha.");
+		header("Location: /profile/change-password");
+		exit;
+
+	}
+
+	if (!isset($_POST['new_pass_confirm']) || $_POST['new_pass_confirm'] === '') {
+
+		User::setError("Confirme a nova senha.");
+		header("Location: /profile/change-password");
+		exit;
+
+	}
+
+	if ($_POST['current_pass'] === $_POST['new_pass']) {
+
+		User::setError("A sua nova senha deve ser diferente da atual.");
+		header("Location: /profile/change-password");
+		exit;		
+
+	}
+
+	$user = User::getFromSession();
+
+	if (!password_verify($_POST['current_pass'], $user->getdespassword())) {
+
+		User::setError("A senha está inválida.");
+		header("Location: /profile/change-password");
+		exit;			
+
+	}
+
+	$user->setdespassword($_POST['new_pass']);
+
+	$user->update();
+
+	User::setSuccess("Senha alterada com sucesso.");
+
+	header("Location: /profile/change-password");
+	exit;
+
+});
 
 ?>
