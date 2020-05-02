@@ -7,45 +7,48 @@ use \Wenesley\Model;
 
 class Product extends Model {
 
-
 	public static function listAll()
 	{
 
 		$sql = new Sql();
 
 		return $sql->select("SELECT * FROM tb_products ORDER BY desproduct");
+
 	}
 
-	public static function checklist($list)
+	public static function checkList($list)
 	{
 
 		foreach ($list as &$row) {
-
+			
 			$p = new Product();
 			$p->setData($row);
 			$row = $p->getValues();
+
 		}
 
 		return $list;
+
 	}
 
-	
 	public function save()
 	{
+
 		$sql = new Sql();
 
 		$results = $sql->select("CALL sp_products_save(:idproduct, :desproduct, :vlprice, :vlwidth, :vlheight, :vllength, :vlweight, :desurl)", array(
-			":idproduct"=>utf8_decode($this->getidproduct()),
+			":idproduct"=>$this->getidproduct(),
 			":desproduct"=>$this->getdesproduct(),
 			":vlprice"=>$this->getvlprice(),
 			":vlwidth"=>$this->getvlwidth(),
 			":vlheight"=>$this->getvlheight(),
 			":vllength"=>$this->getvllength(),
 			":vlweight"=>$this->getvlweight(),
-			":desurl"=>$this->getdesurl()		
+			":desurl"=>$this->getdesurl()
 		));
 
-		$this->setData($results[0]);		
+		$this->setData($results[0]);
+
 	}
 
 	public function get($idproduct)
@@ -54,11 +57,11 @@ class Product extends Model {
 		$sql = new Sql();
 
 		$results = $sql->select("SELECT * FROM tb_products WHERE idproduct = :idproduct", [
-			":idproduct"=>$idproduct
+			':idproduct'=>$idproduct
 		]);
 
 		$this->setData($results[0]);
-		
+
 	}
 
 	public function delete()
@@ -67,9 +70,9 @@ class Product extends Model {
 		$sql = new Sql();
 
 		$sql->query("DELETE FROM tb_products WHERE idproduct = :idproduct", [
-			"idproduct"=>$this->getidproduct()
+			':idproduct'=>$this->getidproduct()
 		]);
-		
+
 	}
 
 	public function checkPhoto()
@@ -171,6 +174,58 @@ class Product extends Model {
 		]);
 
 	}
+
+	public static function getPage($page = 1, $itemsPerPage = 10)
+	{
+
+		$start = ($page - 1) * $itemsPerPage;
+
+		$sql = new Sql();
+
+		$results = $sql->select("
+			SELECT SQL_CALC_FOUND_ROWS *
+			FROM tb_products 
+			ORDER BY desproduct
+			LIMIT $start, $itemsPerPage;
+		");
+
+		$resultTotal = $sql->select("SELECT FOUND_ROWS() AS nrtotal;");
+
+		return [
+			'data'=>$results,
+			'total'=>(int)$resultTotal[0]["nrtotal"],
+			'pages'=>ceil($resultTotal[0]["nrtotal"] / $itemsPerPage)
+		];
+
+	}
+
+	public static function getPageSearch($search, $page = 1, $itemsPerPage = 10)
+	{
+
+		$start = ($page - 1) * $itemsPerPage;
+
+		$sql = new Sql();
+
+		$results = $sql->select("
+			SELECT SQL_CALC_FOUND_ROWS *
+			FROM tb_products 
+			WHERE desproduct LIKE :search
+			ORDER BY desproduct
+			LIMIT $start, $itemsPerPage;
+		", [
+			':search'=>'%'.$search.'%'
+		]);
+
+		$resultTotal = $sql->select("SELECT FOUND_ROWS() AS nrtotal;");
+
+		return [
+			'data'=>$results,
+			'total'=>(int)$resultTotal[0]["nrtotal"],
+			'pages'=>ceil($resultTotal[0]["nrtotal"] / $itemsPerPage)
+		];
+
+	}
+
 }
 
  ?>

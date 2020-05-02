@@ -4,320 +4,209 @@ namespace Wenesley\Model;
 
 use \Wenesley\DB\Sql;
 use \Wenesley\Model;
-use \Wenesley\Mailer;
-use \Wenesley\Model\User;
+use \Wenesley\Model\Cart;
 
-class Cart extends Model {
+class Order extends Model {
 
-	const SESSION = "Cart";
-	const SESSION_ERROR = "CartError";
-
-	public static function getFromSession()
-	{
-
-		$cart = new Cart();
-
-		if (isset($_SESSION[Cart::SESSION]) && (int)$_SESSION[Cart::SESSION]['idcart'] > 0) {
-
-			$cart->get((int)$_SESSION[Cart::SESSION]['idcart']);
-
-		} else {
-
-			$cart->getFromSessionID();
-
-			if (!(int)$cart->getidcart() > 0) {
-
-				$data = [
-					'dessessionid'=>session_id()
-				];
-
-				if (User::checkLogin(false)) {
-
-					$user = User::getFromSession();
-					
-					$data['iduser'] = $user->getiduser();	
-
-				}
-
-				$cart->setData($data);
-
-				$cart->save();
-
-				$cart->setToSession();
-
-
-			}
-
-		}
-
-		return $cart;
-
-	}
-
-	public function setToSession()
-	{
-
-		$_SESSION[Cart::SESSION] = $this->getValues();
-
-	}
-
-	public function getFromSessionID()
-	{
-
-		$sql = new Sql();
-
-		$results = $sql->select("SELECT * FROM tb_carts WHERE dessessionid = :dessessionid", [
-			':dessessionid'=>session_id()
-		]);
-
-		if (count($results) > 0) {
-
-			$this->setData($results[0]);
-
-		}
-
-	}	
-
-	public function get(int $idcart)
-	{
-
-		$sql = new Sql();
-
-		$results = $sql->select("SELECT * FROM tb_carts WHERE idcart = :idcart", [
-			':idcart'=>$idcart
-		]);
-
-		if (count($results) > 0) {
-
-			$this->setData($results[0]);
-
-		}
-
-	}
+	const SUCCESS = "Order-Success";
+	const ERROR = "Order-Error";
 
 	public function save()
 	{
 
 		$sql = new Sql();
 
-		$results = $sql->select("CALL sp_carts_save(:idcart, :dessessionid, :iduser, :deszipcode, :vlfreight, :nrdays)", [
+		$results = $sql->select("CALL sp_orders_save(:idorder, :idcart, :iduser, :idstatus, :idaddress, :vltotal)", [
+			':idorder'=>$this->getidorder(),
 			':idcart'=>$this->getidcart(),
-			':dessessionid'=>$this->getdessessionid(),
 			':iduser'=>$this->getiduser(),
-			':deszipcode'=>$this->getdeszipcode(),
-			':vlfreight'=>$this->getvlfreight(),
-			':nrdays'=>$this->getnrdays()
+			':idstatus'=>$this->getidstatus(),
+			':idaddress'=>$this->getidaddress(),
+			':vltotal'=>$this->getvltotal()
 		]);
 
-		$this->setData($results[0]);
-
-	}
-
-	public function addProduct(Product $product)
-	{
-
-		$sql = new Sql();
-
-		$sql->query("INSERT INTO tb_cartsproducts (idcart, idproduct) VALUES(:idcart, :idproduct)", [
-			':idcart'=>$this->getidcart(),
-			':idproduct'=>$product->getidproduct()
-		]);
-
-		$this->getCalculateTotal();
-
-	}
-
-	public function removeProduct(Product $product, $all = false)
-	{
-
-		$sql = new Sql();
-
-		if ($all) {
-
-			$sql->query("UPDATE tb_cartsproducts SET dtremoved = NOW() WHERE idcart = :idcart AND idproduct = :idproduct AND dtremoved IS NULL", [
-				':idcart'=>$this->getidcart(),
-				':idproduct'=>$product->getidproduct()
-			]);
-
-		} else {
-
-			$sql->query("UPDATE tb_cartsproducts SET dtremoved = NOW() WHERE idcart = :idcart AND idproduct = :idproduct AND dtremoved IS NULL LIMIT 1", [
-				':idcart'=>$this->getidcart(),
-				':idproduct'=>$product->getidproduct()
-			]);
-
+		if (count($results) > 0) {
+			$this->setData($results[0]);
 		}
 
-		$this->getCalculateTotal();
-
 	}
 
-	public function getProducts()
-	{
-
-		$sql = new Sql();
-
-		$rows = $sql->select("
-			SELECT b.idproduct, b.desproduct , b.vlprice, b.vlwidth, b.vlheight, b.vllength, b.vlweight, b.desurl, COUNT(*) AS nrqtd, SUM(b.vlprice) AS vltotal 
-			FROM tb_cartsproducts a 
-			INNER JOIN tb_products b ON a.idproduct = b.idproduct 
-			WHERE a.idcart = :idcart AND a.dtremoved IS NULL 
-			GROUP BY b.idproduct, b.desproduct , b.vlprice, b.vlwidth, b.vlheight, b.vllength, b.vlweight, b.desurl 
-			ORDER BY b.desproduct
-		", [
-			':idcart'=>$this->getidcart()
-		]);
-
-		return Product::checkList($rows);
-
-	}
-
-	public function getProductsTotals()
+	public function get($idorder)
 	{
 
 		$sql = new Sql();
 
 		$results = $sql->select("
-			SELECT SUM(vlprice) AS vlprice, SUM(vlwidth) AS vlwidth, SUM(vlheight) AS vlheight, SUM(vllength) AS vllength, SUM(vlweight) AS vlweight, COUNT(*) AS nrqtd
-			FROM tb_products a
-			INNER JOIN tb_cartsproducts b ON a.idproduct = b.idproduct
-			WHERE b.idcart = :idcart AND dtremoved IS NULL;
+			SELECT * 
+			FROM tb_orders a 
+			INNER JOIN tb_ordersstatus b USING(idstatus) 
+			INNER JOIN tb_carts c USING(idcart)
+			INNER JOIN tb_users d ON d.iduser = a.iduser
+			INNER JOIN tb_addresses e USING(idaddress)
+			INNER JOIN tb_persons f ON f.idperson = d.idperson
+			WHERE a.idorder = :idorder
 		", [
-			':idcart'=>$this->getidcart()
+			':idorder'=>$idorder
 		]);
 
 		if (count($results) > 0) {
-			return $results[0];
-		} else {
-			return [];
+			$this->setData($results[0]);
 		}
 
 	}
 
-	public function setFreight($nrzipcode)
+	public static function listAll()
 	{
 
-		$nrzipcode = str_replace('-', '', $nrzipcode);
+		$sql = new Sql();
 
-		$totals = $this->getProductsTotals();
-
-		if ($totals['nrqtd'] > 0) {
-
-			if ($totals['vlheight'] < 2) $totals['vlheight'] = 2;
-			if ($totals['vllength'] < 16) $totals['vllength'] = 16;
-
-			$qs = http_build_query([
-				'nCdEmpresa'=>'',
-				'sDsSenha'=>'',
-				'nCdServico'=>'40010',
-				'sCepOrigem'=>'09853120',
-				'sCepDestino'=>$nrzipcode,
-				'nVlPeso'=>$totals['vlweight'],
-				'nCdFormato'=>'1',
-				'nVlComprimento'=>$totals['vllength'],
-				'nVlAltura'=>$totals['vlheight'],
-				'nVlLargura'=>$totals['vlwidth'],
-				'nVlDiametro'=>'0',
-				'sCdMaoPropria'=>'S',
-				'nVlValorDeclarado'=>$totals['vlprice'],
-				'sCdAvisoRecebimento'=>'S'
-			]);
-
-			$xml = simplexml_load_file("http://ws.correios.com.br/calculador/CalcPrecoPrazo.asmx/CalcPrecoPrazo?".$qs);
-
-			$result = $xml->Servicos->cServico;
-
-			if ($result->MsgErro != '') {
-
-				Cart::setMsgError($result->MsgErro);
-
-			} else {
-
-				Cart::clearMsgError();
-
-			}
-
-			$this->setnrdays($result->PrazoEntrega);
-			$this->setvlfreight(Cart::formatValueToDecimal($result->Valor));
-			$this->setdeszipcode($nrzipcode);
-
-			$this->save();
-
-			return $result;
-
-		} else {
-
-
-
-		}
+		return $sql->select("
+			SELECT * 
+			FROM tb_orders a 
+			INNER JOIN tb_ordersstatus b USING(idstatus) 
+			INNER JOIN tb_carts c USING(idcart)
+			INNER JOIN tb_users d ON d.iduser = a.iduser
+			INNER JOIN tb_addresses e USING(idaddress)
+			INNER JOIN tb_persons f ON f.idperson = d.idperson
+			ORDER BY a.dtregister DESC
+		");
 
 	}
 
-	public static function formatValueToDecimal($value):float
+	public function delete()
 	{
 
-		$value = str_replace('.', '', $value);
-		return str_replace(',', '.', $value);
+		$sql = new Sql();
+
+		$sql->query("DELETE FROM tb_orders WHERE idorder = :idorder", [
+			':idorder'=>$this->getidorder()
+		]);
 
 	}
 
-	public static function setMsgError($msg)
+	public function getCart():Cart
 	{
 
-		$_SESSION[Cart::SESSION_ERROR] = $msg;
+		$cart = new Cart();
+
+		$cart->get((int)$this->getidcart());
+
+		return $cart;
 
 	}
 
-	public static function getMsgError()
+	public static function setError($msg)
 	{
 
-		$msg = (isset($_SESSION[Cart::SESSION_ERROR])) ? $_SESSION[Cart::SESSION_ERROR] : "";
+		$_SESSION[Order::ERROR] = $msg;
 
-		Cart::clearMsgError();
+	}
+
+	public static function getError()
+	{
+
+		$msg = (isset($_SESSION[Order::ERROR]) && $_SESSION[Order::ERROR]) ? $_SESSION[Order::ERROR] : '';
+
+		Order::clearError();
 
 		return $msg;
 
 	}
 
-	public static function clearMsgError()
+	public static function clearError()
 	{
 
-		$_SESSION[Cart::SESSION_ERROR] = NULL;
+		$_SESSION[Order::ERROR] = NULL;
 
 	}
 
-	public function updateFreight()
+	public static function setSuccess($msg)
 	{
 
-		if ($this->getdeszipcode() != '') {
-
-			$this->setFreight($this->getdeszipcode());
-
-		}
+		$_SESSION[Order::SUCCESS] = $msg;
 
 	}
 
-	public function getValues()
+	public static function getSuccess()
 	{
 
-		$this->getCalculateTotal();
+		$msg = (isset($_SESSION[Order::SUCCESS]) && $_SESSION[Order::SUCCESS]) ? $_SESSION[Order::SUCCESS] : '';
 
-		return parent::getValues();
+		Order::clearSuccess();
+
+		return $msg;
 
 	}
 
-	public function getCalculateTotal()
+	public static function clearSuccess()
 	{
 
-		$this->updateFreight();
+		$_SESSION[Order::SUCCESS] = NULL;
 
-		$totals = $this->getProductsTotals();
+	}
 
-		$this->setvlsubtotal($totals['vlprice']);
-		$this->setvltotal($totals['vlprice'] + (float)$this->getvlfreight());
+	public static function getPage($page = 1, $itemsPerPage = 10)
+	{
+
+		$start = ($page - 1) * $itemsPerPage;
+
+		$sql = new Sql();
+
+		$results = $sql->select("
+			SELECT SQL_CALC_FOUND_ROWS *
+			FROM tb_orders a 
+			INNER JOIN tb_ordersstatus b USING(idstatus) 
+			INNER JOIN tb_carts c USING(idcart)
+			INNER JOIN tb_users d ON d.iduser = a.iduser
+			INNER JOIN tb_addresses e USING(idaddress)
+			INNER JOIN tb_persons f ON f.idperson = d.idperson
+			ORDER BY a.dtregister DESC
+			LIMIT $start, $itemsPerPage;
+		");
+
+		$resultTotal = $sql->select("SELECT FOUND_ROWS() AS nrtotal;");
+
+		return [
+			'data'=>$results,
+			'total'=>(int)$resultTotal[0]["nrtotal"],
+			'pages'=>ceil($resultTotal[0]["nrtotal"] / $itemsPerPage)
+		];
+
+	}
+
+	public static function getPageSearch($search, $page = 1, $itemsPerPage = 10)
+	{
+
+		$start = ($page - 1) * $itemsPerPage;
+
+		$sql = new Sql();
+
+		$results = $sql->select("
+			SELECT SQL_CALC_FOUND_ROWS *
+			FROM tb_orders a 
+			INNER JOIN tb_ordersstatus b USING(idstatus) 
+			INNER JOIN tb_carts c USING(idcart)
+			INNER JOIN tb_users d ON d.iduser = a.iduser
+			INNER JOIN tb_addresses e USING(idaddress)
+			INNER JOIN tb_persons f ON f.idperson = d.idperson
+			WHERE a.idorder = :id OR f.desperson LIKE :search
+			ORDER BY a.dtregister DESC
+			LIMIT $start, $itemsPerPage;
+		", [
+			':search'=>'%'.$search.'%',
+			':id'=>$search
+		]);
+
+		$resultTotal = $sql->select("SELECT FOUND_ROWS() AS nrtotal;");
+
+		return [
+			'data'=>$results,
+			'total'=>(int)$resultTotal[0]["nrtotal"],
+			'pages'=>ceil($resultTotal[0]["nrtotal"] / $itemsPerPage)
+		];
 
 	}
 
 }
 
- ?>
+?>
