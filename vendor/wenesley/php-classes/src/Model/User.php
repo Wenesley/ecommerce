@@ -276,16 +276,12 @@ class User extends Model {
 		$sql = new Sql();
 
 		$results = $sql->select("
-			SELECT *
-			FROM tb_userspasswordsrecoveries a
+			SELECT * FROM tb_userspasswordsrecoveries a
 			INNER JOIN tb_users b USING(iduser)
 			INNER JOIN tb_persons c USING(idperson)
-			WHERE
-				a.idrecovery = :idrecovery
-				AND
-				a.dtrecovery IS NULL
-				AND
-				DATE_ADD(a.dtregister, INTERVAL 1 HOUR) >= NOW();
+			WHERE a.idrecovery = :idrecovery
+			AND a.dtrecovery IS NULL
+			AND DATE_ADD(a.dtregister, INTERVAL 1 HOUR) >= NOW();
 		", array(
 			":idrecovery"=>$idrecovery
 		));
